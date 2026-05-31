@@ -37,9 +37,8 @@ def natural_feature_builder(natural_dataset):
     natural_featured['soil_temperature'] = soil_temperature
     natural_featured['volumetric_soil_water'] = volumetric_soil_water
     natural_featured['wind_speed_10m'] = wind_speed_10m
-    natural_featured = natural_featured[['surface_solar_radiation_downwards_sum', 'temperature_2m', 'soil_temperature', 
-                                         'dewpoint_temperature_2m', 'volumetric_soil_water','total_precipitation_sum', 
-                                         'surface_pressure', 'wind_speed_10m']]
+    natural_feature = natural_featured[['surface_solar_radiation_downwards_sum', 'temperature_2m', 'soil_temperature', 
+    'dewpoint_temperature_2m', 'volumetric_soil_water','total_precipitation_sum', 'surface_pressure', 'wind_speed_10m']]
     return natural_feature
 
 ### Remove samples with missing values and filter counties with insufficient observations.
