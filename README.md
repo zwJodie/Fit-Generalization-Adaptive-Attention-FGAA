@@ -559,5 +559,6 @@ These scripts perform:
 # Notes
 
 - Deep learning experiments may require **substantial runtime** due to repeated model training and cross-validation.
-- **GPU acceleration is recommended** for faster training.
+- The Code Ocean capsule provides a CPU-only implementation because of cloud reproducibility environment limitations.
+- Users seeking substantially faster execution using GPU acceleration may refer to the official FGAA repository: https://github.com/zwJodie/Fit-Generalization-Adaptive-Attention-FGAA.git
 - Minor numerical variation may occur due to **stochastic optimization**.
