@@ -211,16 +211,16 @@ def presenter(model, data_iter, yield_observed):
         yield_batch_hat, instance_identity_batch = model(input_batch)
         yield_batch_mse = instance_criterion(yield_batch_hat, yield_batch)
         instance_identity.append(instance_identity_batch.detach())
-        yield_hat.append(yield_batch_hat.detach())
-        yield_mse.append(yield_batch_mse.detach())
+        yield_hat.append(yield_batch_hat.detach().cpu())
+        yield_mse.append(yield_batch_mse.detach().cpu())
     instance_identity = torch.concat(instance_identity)
     yield_hat, yield_mse = np.concatenate(yield_hat), np.concatenate(yield_mse)
     num_output = next(iter(data_iter))[0].shape[1]
-    r2 = r2_score(yield_observed, yield_hat)
-    mse = mean_squared_error(yield_observed, yield_hat)
-    mae = mean_absolute_error(yield_observed, yield_hat)
+    r2 = r2_score(yield_observed.cpu(), yield_hat)
+    mse = mean_squared_error(yield_observed.cpu(), yield_hat)
+    mae = mean_absolute_error(yield_observed.cpu(), yield_hat)
     instance_scores = attention(instance_identity)
-    return r2, mse, mae, yield_mse, instance_scores.numpy().reshape(-1,1)
+    return r2, mse, mae, yield_mse, instance_scores.cpu().numpy().reshape(-1,1)
 
 ### Compute feature attribution using Integrated Gradients and GradientShap.
 def explainer(model_type, data_type, num_instance_identity, model_dict, data_to_explain, explainer_type):
@@ -233,7 +233,7 @@ def explainer(model_type, data_type, num_instance_identity, model_dict, data_to_
         model_for_explain = GradientShap(model_to_explain)
     feature_importance = []
     for yield_batch, input_batch in data_to_explain:
-        feature_importance_batch = model_for_explain.attribute(input_batch, baselines=torch.zeros(input_batch.size()))
+        feature_importance_batch = model_for_explain.attribute(input_batch.cpu(), baselines=torch.zeros(input_batch.size()))
         feature_importance.append(feature_importance_batch)
     feature_importance = torch.concat(feature_importance)
     return feature_importance.numpy()
@@ -242,12 +242,14 @@ def explainer(model_type, data_type, num_instance_identity, model_dict, data_to_
 ### Train the yield prediction model using a two-stage strategy.
 def predictor(model_type, data_type, num_instance_identity, require_explanation,yield_train, social_train, natural_train, yield_valid,
 social_valid, natural_valid,batch_size, learning_rate, max_epoch, patience, train_breaker, yield_test, social_test, natural_test):
-    model = Model(model_type, data_type, num_instance_identity, True)
+    model = Model(model_type, data_type, num_instance_identity, True).cuda()
     if data_type == 'baseline':
         input_train, input_valid, input_test = natural_train, natural_valid, natural_test
     elif data_type == 'addition':
         input_train, input_valid = torch.cat([social_train, natural_train], -1), torch.cat([social_valid, natural_valid], -1)
         input_test = torch.cat([social_test, natural_test], -1)
+    yield_train, yield_valid, yield_test = yield_train.cuda(), yield_valid.cuda(), yield_test.cuda()
+    input_train, input_valid, input_test = input_train.cuda(), input_valid.cuda(), input_test.cuda()
     train_iter = d2l.load_array((yield_train, input_train), batch_size, False)
     valid_iter = d2l.load_array((yield_valid, input_valid), batch_size, False)
     test_iter = d2l.load_array((yield_test, input_test), batch_size, False)
@@ -303,7 +305,7 @@ social_valid, natural_valid,batch_size, learning_rate, max_epoch, patience, trai
 
 # Stage 2: FGAA fine-tuning, where samples with higher prediction difficulty receive larger optimization weights.
     train_r2, train_mse, train_mae, yield_train_mse, train_instance_scores = presenter(model, train_iter, yield_train)
-    instance_scores = torch.from_numpy(train_instance_scores.reshape(-1)).float()
+    instance_scores = torch.from_numpy(train_instance_scores.reshape(-1)).float().cuda()
     train_iter_finetune = d2l.load_array((yield_train, input_train, instance_scores), batch_size, False)
 
     for epoch in range(max_epoch):
